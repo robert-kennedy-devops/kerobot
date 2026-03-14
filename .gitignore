@@ -1,0 +1,6 @@
+.env
+.env.*
+data/
+_frames/
+_frames2/
+*.session

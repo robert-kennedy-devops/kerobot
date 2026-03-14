@@ -1,5 +1,9 @@
 # KeroBot
 
+![Go](https://img.shields.io/badge/Go-1.25-blue)
+![Docker](https://img.shields.io/badge/Docker-Compose-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 KeroBot é um **cliente de usuário do Telegram** (MTProto) pronto para produção que automatiza ações de jogo no **Teletofusbot**. Ele usa `gotd/td`, PostgreSQL, logs estruturados e arquitetura modular com engine baseada em eventos.
 
 ## Recursos

@@ -50,7 +50,7 @@ func (e *AutomationEngine) HandleSnapshot(ctx context.Context, snapshot parser.S
 	switch snapshot.State {
 	case parser.StateCombat:
 		if allowCombat {
-			e.enqueue(Action{Type: ActionClick, Label: "Atacar", Peer: targetPeer, Reason: "combat"})
+			e.enqueue(Action{Type: ActionClick, Label: "Atacar", Peer: targetPeer, Reason: "combat", Priority: 1})
 		}
 	case parser.StateMainMenu:
 		if allowHunt {
@@ -64,7 +64,7 @@ func (e *AutomationEngine) HandleSnapshot(ctx context.Context, snapshot parser.S
 }
 
 func (e *AutomationEngine) enqueue(action Action) {
-	e.executor.Queue() <- action
+	e.executor.Enqueue(action)
 	e.log.Debug("action queued", slog.String("action", string(action.Type)), slog.String("label", action.Label))
 }
 
@@ -85,10 +85,10 @@ func (e *AutomationEngine) handleLearnedRules(ctx context.Context, snapshot pars
 		}
 		switch r.ActionType {
 		case "click":
-			e.enqueue(Action{Type: ActionClick, Label: r.ActionValue, Peer: targetPeer, Reason: "rule"})
+			e.enqueue(Action{Type: ActionClick, Label: r.ActionValue, Peer: targetPeer, Reason: "rule", Priority: 1})
 			return true
 		case "send":
-			e.enqueue(Action{Type: ActionSend, Text: r.ActionValue, Peer: targetPeer, Reason: "rule"})
+			e.enqueue(Action{Type: ActionSend, Text: r.ActionValue, Peer: targetPeer, Reason: "rule", Priority: 1})
 			return true
 		}
 	}

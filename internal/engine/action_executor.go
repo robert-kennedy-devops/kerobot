@@ -21,17 +21,19 @@ const (
 )
 
 type Action struct {
-	Type   ActionType
-	Label  string
-	Text   string
-	Peer   tg.InputPeerClass
-	Reason string
+	Type     ActionType
+	Label    string
+	Text     string
+	Peer     tg.InputPeerClass
+	Reason   string
+	Priority int // 0=normal, 1=high
 }
 
 type Executor struct {
 	client  *telegram.Client
 	log     *slog.Logger
 	queue   chan Action
+	highQ   chan Action
 	delay   time.Duration
 	retry   retry.Config
 	metrics *metrics.Counters
@@ -42,6 +44,7 @@ func NewExecutor(client *telegram.Client, log *slog.Logger, delay time.Duration,
 		client:  client,
 		log:     log,
 		queue:   make(chan Action, 200),
+		highQ:   make(chan Action, 50),
 		delay:   delay,
 		retry:   retryCfg,
 		metrics: counters,
@@ -50,16 +53,38 @@ func NewExecutor(client *telegram.Client, log *slog.Logger, delay time.Duration,
 
 func (e *Executor) Queue() chan<- Action { return e.queue }
 
+func (e *Executor) Enqueue(action Action) {
+	if action.Priority > 0 {
+		select {
+		case e.highQ <- action:
+		default:
+			e.queue <- action
+		}
+		return
+	}
+	e.queue <- action
+}
+
 func (e *Executor) Start(ctx context.Context) {
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case action := <-e.queue:
-				e.execute(ctx, action)
-				if e.delay > 0 {
-					time.Sleep(e.delay)
+			default:
+				select {
+				case <-ctx.Done():
+					return
+				case action := <-e.highQ:
+					e.execute(ctx, action)
+					if e.delay > 0 {
+						time.Sleep(e.delay)
+					}
+				case action := <-e.queue:
+					e.execute(ctx, action)
+					if e.delay > 0 {
+						time.Sleep(e.delay)
+					}
 				}
 			}
 		}

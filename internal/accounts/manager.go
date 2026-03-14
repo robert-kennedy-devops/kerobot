@@ -8,7 +8,6 @@ import (
 	"image/color"
 	stddraw "image/draw"
 	"image/png"
-	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -117,11 +116,10 @@ func (m *Manager) StartQRLogin(ctx context.Context, chatID int64) ([]byte, error
 		err := client.Run(ctx, func(ctx context.Context) error {
 			qrAuth := client.QR()
 			_, err := qrAuth.Auth(ctx, loggedIn, func(ctx context.Context, token qrlogin.Token) error {
-				img, err := token.Image(qr.M)
+				img, err := renderQR(token.URL(), 640)
 				if err != nil {
 					return err
 				}
-				img = scaleToSize(img, 640)
 				var buf bytes.Buffer
 				if err := png.Encode(&buf, img); err != nil {
 					return err
@@ -318,40 +316,31 @@ func (m *Manager) captureEnabled(ctx context.Context, telegramID int64) bool {
 	return enabled
 }
 
-func scaleToSize(src image.Image, size int) image.Image {
+func renderQR(url string, size int) (image.Image, error) {
 	if size <= 0 {
-		return src
+		size = 640
 	}
-	b := src.Bounds()
-	w, h := b.Dx(), b.Dy()
-	if w == 0 || h == 0 {
-		return src
+	code, err := qr.Encode(url, qr.M)
+	if err != nil {
+		return nil, err
 	}
-	ratio := float64(size) / float64(max(w, h))
-	if ratio < 1 {
-		ratio = 1
-	}
-	dstW := int(math.Round(float64(w) * ratio))
-	dstH := int(math.Round(float64(h) * ratio))
-	if dstW > size {
-		dstW = size
-	}
-	if dstH > size {
-		dstH = size
+	modules := code.Size
+	if modules <= 0 {
+		return nil, fmt.Errorf("invalid qr size")
 	}
 	dst := image.NewRGBA(image.Rect(0, 0, size, size))
 	stddraw.Draw(dst, dst.Bounds(), &image.Uniform{C: color.White}, image.Point{}, stddraw.Src)
-	offX := (size - dstW) / 2
-	offY := (size - dstH) / 2
-	scaleNearest(dst, src, offX, offY, dstW, dstH)
-	return dst
-}
 
-func max(a, b int) int {
-	if a > b {
-		return a
+	for y := 0; y < size; y++ {
+		my := (y * modules) / size
+		for x := 0; x < size; x++ {
+			mx := (x * modules) / size
+			if code.Black(mx, my) {
+				dst.Set(x, y, color.Black)
+			}
+		}
 	}
-	return b
+	return dst, nil
 }
 
 func scaleNearest(dst *image.RGBA, src image.Image, offX, offY, dstW, dstH int) {

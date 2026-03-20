@@ -52,6 +52,9 @@ func main() {
 	manager.StartExisting(ctx)
 
 	if cfg.Bot.Enabled && cfg.Bot.Token != "" {
+		if cfg.Bot.AdminChatID == 0 {
+			log.Warn("ADMIN_CHAT_ID not set: config bot is open to ALL users — set ADMIN_CHAT_ID to restrict access")
+		}
 		bot, err := configbot.New(cfg.Bot.Token, cfg.Bot.AdminChatID, cfgRepo, log, manager)
 		if err != nil {
 			log.Error("config bot init failed", slog.Any("err", err))

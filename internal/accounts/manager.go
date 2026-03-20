@@ -30,6 +30,7 @@ import (
 	"kerobot/internal/models"
 	"kerobot/internal/parser"
 	internaltelegram "kerobot/internal/telegram"
+	"kerobot/pkg/configcache"
 	"kerobot/pkg/metrics"
 	"kerobot/pkg/retry"
 )
@@ -238,7 +239,8 @@ func (m *Manager) runAccount(ctx context.Context, telegramID int64, sessionPath 
 	exec := engine.NewExecutor(tgClient, m.log, m.cfg.Limits.ClickDelay, retry.Config{Attempts: m.cfg.Limits.RetryAttempts, Delay: m.cfg.Limits.RetryDelay}, m.counters)
 	exec.Start(ctx)
 
-	automEngine := engine.NewAutomationEngine(m.log, state, exec, m.repo, m.repo, telegramID)
+	cachedCfg := configcache.New(m.repo, 30*time.Second)
+	automEngine := engine.NewAutomationEngine(m.log, state, exec, cachedCfg, m.repo, telegramID)
 
 	go func() {
 		for {
@@ -257,11 +259,11 @@ func (m *Manager) runAccount(ctx context.Context, telegramID int64, sessionPath 
 		}
 	}()
 
-	go automation.NewAutoHuntWorker(state, exec.Queue(), targetPeer, m.cfg.Automation.HuntInterval, m.repo, telegramID, m.log).Run(ctx)
-	go automation.NewAutoCombatWorker(state, exec.Queue(), targetPeer, m.cfg.Automation.CombatInterval, m.repo, telegramID, m.log).Run(ctx)
-	go automation.NewAutoHealWorker(state, exec.Queue(), targetPeer, m.cfg.Automation.HealInterval, m.cfg.Automation.HealPercent, m.repo, telegramID, m.log).Run(ctx)
-	go automation.NewAutoPotionWorker(state, exec.Queue(), targetPeer, m.cfg.Automation.PotionInterval, m.cfg.Automation.MinPotions, m.repo, telegramID, m.log).Run(ctx)
-	go automation.NewDungeonWorker(state, exec.Queue(), targetPeer, m.cfg.Automation.DungeonInterval, m.repo, telegramID, m.log).Run(ctx)
+	go automation.NewAutoHuntWorker(state, exec.Queue(), targetPeer, m.cfg.Automation.HuntInterval, cachedCfg, telegramID, m.log).Run(ctx)
+	go automation.NewAutoCombatWorker(state, exec.Queue(), targetPeer, m.cfg.Automation.CombatInterval, cachedCfg, telegramID, m.log).Run(ctx)
+	go automation.NewAutoHealWorker(state, exec.Queue(), targetPeer, m.cfg.Automation.HealInterval, m.cfg.Automation.HealPercent, cachedCfg, telegramID, m.log).Run(ctx)
+	go automation.NewAutoPotionWorker(state, exec.Queue(), targetPeer, m.cfg.Automation.PotionInterval, m.cfg.Automation.MinPotions, cachedCfg, telegramID, m.log).Run(ctx)
+	go automation.NewDungeonWorker(state, exec.Queue(), targetPeer, m.cfg.Automation.DungeonInterval, cachedCfg, telegramID, m.log).Run(ctx)
 
 	<-ctx.Done()
 	m.log.Info("account stopped", slog.Int64("telegram_id", telegramID))
@@ -343,20 +345,3 @@ func renderQR(url string, size int) (image.Image, error) {
 	return dst, nil
 }
 
-func scaleNearest(dst *image.RGBA, src image.Image, offX, offY, dstW, dstH int) {
-	if dstW <= 0 || dstH <= 0 {
-		return
-	}
-	sb := src.Bounds()
-	sw, sh := sb.Dx(), sb.Dy()
-	if sw == 0 || sh == 0 {
-		return
-	}
-	for y := 0; y < dstH; y++ {
-		sy := sb.Min.Y + (y*sh)/dstH
-		for x := 0; x < dstW; x++ {
-			sx := sb.Min.X + (x*sw)/dstW
-			dst.Set(offX+x, offY+y, src.At(sx, sy))
-		}
-	}
-}

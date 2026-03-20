@@ -9,6 +9,7 @@ import (
 
 	"kerobot/internal/models"
 	"kerobot/internal/parser"
+	"kerobot/pkg/textutil"
 )
 
 type AutomationEngine struct {
@@ -99,29 +100,16 @@ func matchRule(snapshot parser.Snapshot, r models.Rule) bool {
 	switch r.MatchType {
 	case "button":
 		for _, b := range snapshot.Buttons {
-			if norm(b) == norm(r.MatchValue) {
+			if textutil.Normalize(b) == textutil.Normalize(r.MatchValue) {
 				return true
 			}
 		}
 		return false
 	case "text_contains":
-		return strings.Contains(norm(snapshot.Text), norm(r.MatchValue))
+		return strings.Contains(textutil.Normalize(snapshot.Text), textutil.Normalize(r.MatchValue))
 	case "state":
-		return norm(string(snapshot.State)) == norm(r.MatchValue)
+		return textutil.Normalize(string(snapshot.State)) == textutil.Normalize(r.MatchValue)
 	default:
 		return false
 	}
-}
-
-func norm(s string) string {
-	s = strings.TrimSpace(strings.ToLower(s))
-	repl := strings.NewReplacer(
-		"á", "a", "ã", "a", "â", "a",
-		"é", "e", "ê", "e",
-		"í", "i",
-		"ó", "o", "ô", "o", "õ", "o",
-		"ú", "u",
-		"ç", "c",
-	)
-	return repl.Replace(s)
 }

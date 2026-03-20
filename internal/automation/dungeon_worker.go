@@ -40,10 +40,24 @@ func (w *DungeonWorker) Run(ctx context.Context) {
 			}
 			snap := w.state.Snapshot()
 			if snap.State == parser.StateMainMenu || snap.State == parser.StateDungeon {
-				w.queue <- engine.Action{Type: engine.ActionClick, Label: "Masmorra", Peer: w.peer, Reason: "open_dungeon"}
-				w.queue <- engine.Action{Type: engine.ActionClick, Label: "Criar sala", Peer: w.peer, Reason: "create_room"}
-				w.queue <- engine.Action{Type: engine.ActionClick, Label: "Iniciar", Peer: w.peer, Reason: "start_dungeon"}
-				w.debug("enqueue", "Masmorra")
+				actions := []engine.Action{
+					{Type: engine.ActionClick, Label: "Masmorra", Peer: w.peer, Reason: "open_dungeon"},
+					{Type: engine.ActionClick, Label: "Criar sala", Peer: w.peer, Reason: "create_room"},
+					{Type: engine.ActionClick, Label: "Iniciar", Peer: w.peer, Reason: "start_dungeon"},
+				}
+				dropped := false
+				for _, a := range actions {
+					select {
+					case w.queue <- a:
+					default:
+						dropped = true
+					}
+				}
+				if dropped {
+					w.debug("queue full, some dungeon actions dropped", "")
+				} else {
+					w.debug("enqueue", "Masmorra")
+				}
 			} else {
 				w.debug("skip dungeon: state", string(snap.State))
 			}

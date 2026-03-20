@@ -2,9 +2,11 @@ package telegram
 
 import (
 	"context"
+	"sync"
 )
 
 type Listener struct {
+	mu           sync.RWMutex
 	targetChatID int64
 	events       chan *Message
 }
@@ -19,14 +21,19 @@ func NewListener(targetChatID int64) *Listener {
 func (l *Listener) Events() <-chan *Message { return l.events }
 
 func (l *Listener) SetTarget(chatID int64) {
+	l.mu.Lock()
 	l.targetChatID = chatID
+	l.mu.Unlock()
 }
 
 func (l *Listener) Handle(ctx context.Context, msg *Message) error {
 	if msg == nil {
 		return nil
 	}
-	if l.targetChatID != 0 && msg.ChatID != l.targetChatID {
+	l.mu.RLock()
+	target := l.targetChatID
+	l.mu.RUnlock()
+	if target != 0 && msg.ChatID != target {
 		return nil
 	}
 	select {

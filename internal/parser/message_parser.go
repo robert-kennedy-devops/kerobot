@@ -3,6 +3,8 @@ package parser
 import (
 	"regexp"
 	"strings"
+
+	"kerobot/pkg/textutil"
 )
 
 var (
@@ -49,7 +51,7 @@ func Parse(text string, buttons []string) Snapshot {
 	if containsButton(buttons, "atacar") {
 		snapshot.State = StateCombat
 	}
-	if containsButton(buttons, "inventário") || strings.Contains(normalize(lower), "inventario") {
+	if containsButton(buttons, "inventário") || strings.Contains(textutil.Normalize(lower), "inventario") {
 		snapshot.State = StateInventory
 	}
 	if containsButton(buttons, "dungeon") || containsButton(buttons, "masmorra") || strings.Contains(lower, "dungeon") || strings.Contains(lower, "masmorra") {
@@ -69,12 +71,9 @@ func Parse(text string, buttons []string) Snapshot {
 }
 
 func containsButton(buttons []string, label string) bool {
-	target := normalize(label)
+	target := textutil.Normalize(label)
 	for _, b := range buttons {
-		if normalize(b) == target {
-			return true
-		}
-		if strings.Contains(normalize(b), target) {
+		if n := textutil.Normalize(b); n == target || strings.Contains(n, target) {
 			return true
 		}
 	}
@@ -86,25 +85,9 @@ func HasButton(buttons []string, label string) bool {
 	return containsButton(buttons, label)
 }
 
-func normalize(s string) string {
-	s = strings.TrimSpace(strings.ToLower(s))
-	s = strings.ReplaceAll(s, "á", "a")
-	s = strings.ReplaceAll(s, "ã", "a")
-	s = strings.ReplaceAll(s, "â", "a")
-	s = strings.ReplaceAll(s, "é", "e")
-	s = strings.ReplaceAll(s, "ê", "e")
-	s = strings.ReplaceAll(s, "í", "i")
-	s = strings.ReplaceAll(s, "ó", "o")
-	s = strings.ReplaceAll(s, "ô", "o")
-	s = strings.ReplaceAll(s, "õ", "o")
-	s = strings.ReplaceAll(s, "ú", "u")
-	s = strings.ReplaceAll(s, "ç", "c")
-	return s
-}
-
-// Normalize exposes the same normalization used for button matching.
+// Normalize exposes textutil.Normalize for callers that import only this package.
 func Normalize(s string) string {
-	return normalize(s)
+	return textutil.Normalize(s)
 }
 
 func atoiSafe(s string) int {

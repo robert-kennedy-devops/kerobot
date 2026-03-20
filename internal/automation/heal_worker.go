@@ -54,18 +54,23 @@ func (w *AutoHealWorker) Run(ctx context.Context) {
 				}
 			}
 			if snap.HPPercent > 0 && snap.HPPercent < threshold {
+				var action engine.Action
 				switch {
 				case parser.HasButton(snap.Buttons, "Consumíveis"):
-					w.queue <- engine.Action{Type: engine.ActionClick, Label: "Consumíveis", Peer: w.peer, Reason: "open_consumables"}
-					w.debug("enqueue", "Consumíveis")
+					action = engine.Action{Type: engine.ActionClick, Label: "Consumíveis", Peer: w.peer, Reason: "open_consumables"}
 				case parser.HasButton(snap.Buttons, "Poção de Vida"):
-					w.queue <- engine.Action{Type: engine.ActionClick, Label: "Poção de Vida", Peer: w.peer, Reason: "use_potion"}
-					w.debug("enqueue", "Poção de Vida")
+					action = engine.Action{Type: engine.ActionClick, Label: "Poção de Vida", Peer: w.peer, Reason: "use_potion"}
 				case parser.HasButton(snap.Buttons, "Inventário"):
-					w.queue <- engine.Action{Type: engine.ActionClick, Label: "Inventário", Peer: w.peer, Reason: "open_inventory"}
-					w.debug("enqueue", "Inventário")
+					action = engine.Action{Type: engine.ActionClick, Label: "Inventário", Peer: w.peer, Reason: "open_inventory"}
 				default:
 					w.debug("heal: no buttons", "")
+					continue
+				}
+				select {
+				case w.queue <- action:
+					w.debug("enqueue", action.Label)
+				default:
+					w.debug("queue full, skipping", action.Label)
 				}
 			} else {
 				w.debug("skip heal: hp", strconv.Itoa(snap.HPPercent))

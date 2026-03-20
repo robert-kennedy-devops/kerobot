@@ -58,22 +58,26 @@ func (w *AutoPotionWorker) Run(ctx context.Context) {
 			}
 
 			// Smart flow based on visible buttons.
+			var action engine.Action
 			switch {
 			case parser.HasButton(snap.Buttons, "Loja"):
-				w.queue <- engine.Action{Type: engine.ActionClick, Label: "Loja", Peer: w.peer, Reason: "open_shop"}
-				w.debug("enqueue", "Loja")
+				action = engine.Action{Type: engine.ActionClick, Label: "Loja", Peer: w.peer, Reason: "open_shop"}
 			case parser.HasButton(snap.Buttons, "Comprar"):
-				w.queue <- engine.Action{Type: engine.ActionClick, Label: "Comprar", Peer: w.peer, Reason: "shop_buy"}
-				w.debug("enqueue", "Comprar")
+				action = engine.Action{Type: engine.ActionClick, Label: "Comprar", Peer: w.peer, Reason: "shop_buy"}
 			case parser.HasButton(snap.Buttons, "Poção de Vida"):
-				w.queue <- engine.Action{Type: engine.ActionClick, Label: "Poção de Vida", Peer: w.peer, Reason: "select_potion"}
-				w.debug("enqueue", "Poção de Vida")
+				action = engine.Action{Type: engine.ActionClick, Label: "Poção de Vida", Peer: w.peer, Reason: "select_potion"}
 			case parser.HasButton(snap.Buttons, "Escolher quantidade"):
-				w.queue <- engine.Action{Type: engine.ActionClick, Label: "Escolher quantidade", Peer: w.peer, Reason: "choose_amount"}
-				w.debug("enqueue", "Escolher quantidade")
+				action = engine.Action{Type: engine.ActionClick, Label: "Escolher quantidade", Peer: w.peer, Reason: "choose_amount"}
 			case parser.HasButton(snap.Buttons, "Comprar 5"):
-				w.queue <- engine.Action{Type: engine.ActionClick, Label: "Comprar 5", Peer: w.peer, Reason: "buy_5"}
-				w.debug("enqueue", "Comprar 5")
+				action = engine.Action{Type: engine.ActionClick, Label: "Comprar 5", Peer: w.peer, Reason: "buy_5"}
+			default:
+				continue
+			}
+			select {
+			case w.queue <- action:
+				w.debug("enqueue", action.Label)
+			default:
+				w.debug("queue full, skipping", action.Label)
 			}
 		}
 	}

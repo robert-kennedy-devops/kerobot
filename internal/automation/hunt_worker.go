@@ -48,8 +48,12 @@ func (w *AutoHuntWorker) Run(ctx context.Context) {
 				w.debug("skip hunt: disabled", "")
 				continue
 			}
-			w.queue <- engine.Action{Type: engine.ActionClick, Label: "Caçar", Peer: w.peer, Reason: "worker_hunt"}
-			w.debug("enqueue", "Caçar")
+			select {
+			case w.queue <- engine.Action{Type: engine.ActionClick, Label: "Caçar", Peer: w.peer, Reason: "worker_hunt"}:
+				w.debug("enqueue", "Caçar")
+			default:
+				w.debug("queue full, skipping", "Caçar")
+			}
 		}
 	}
 }

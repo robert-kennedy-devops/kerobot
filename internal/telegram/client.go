@@ -16,6 +16,8 @@ import (
 	"github.com/gotd/td/telegram/updates"
 	"github.com/gotd/td/tg"
 	"golang.org/x/time/rate"
+
+	"kerobot/pkg/textutil"
 )
 
 type Client struct {
@@ -265,23 +267,7 @@ func PeerID(peer tg.InputPeerClass) int64 {
 }
 
 func matchButton(actual, desired string) bool {
-	a := normalizeButton(actual)
-	d := normalizeButton(desired)
+	a := textutil.Normalize(actual)
+	d := textutil.Normalize(desired)
 	return a == d || strings.Contains(a, d) || strings.Contains(d, a)
-}
-
-func normalizeButton(s string) string {
-	s = strings.TrimSpace(strings.ToLower(s))
-	s = strings.ReplaceAll(s, "á", "a")
-	s = strings.ReplaceAll(s, "ã", "a")
-	s = strings.ReplaceAll(s, "â", "a")
-	s = strings.ReplaceAll(s, "é", "e")
-	s = strings.ReplaceAll(s, "ê", "e")
-	s = strings.ReplaceAll(s, "í", "i")
-	s = strings.ReplaceAll(s, "ó", "o")
-	s = strings.ReplaceAll(s, "ô", "o")
-	s = strings.ReplaceAll(s, "õ", "o")
-	s = strings.ReplaceAll(s, "ú", "u")
-	s = strings.ReplaceAll(s, "ç", "c")
-	return s
 }

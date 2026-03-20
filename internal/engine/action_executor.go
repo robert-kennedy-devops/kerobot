@@ -57,12 +57,19 @@ func (e *Executor) Enqueue(action Action) {
 	if action.Priority > 0 {
 		select {
 		case e.highQ <- action:
+			return
 		default:
-			e.queue <- action
 		}
-		return
 	}
-	e.queue <- action
+	select {
+	case e.queue <- action:
+	default:
+		e.log.Warn("action queue full, dropping",
+			slog.String("type", string(action.Type)),
+			slog.String("label", action.Label),
+			slog.String("reason", action.Reason),
+		)
+	}
 }
 
 func (e *Executor) Start(ctx context.Context) {

@@ -43,8 +43,12 @@ func (w *AutoCombatWorker) Run(ctx context.Context) {
 				w.debug("skip combat: disabled", "")
 				continue
 			}
-			w.queue <- engine.Action{Type: engine.ActionClick, Label: "Atacar", Peer: w.peer, Reason: "worker_combat"}
-			w.debug("enqueue", "Atacar")
+			select {
+			case w.queue <- engine.Action{Type: engine.ActionClick, Label: "Atacar", Peer: w.peer, Reason: "worker_combat"}:
+				w.debug("enqueue", "Atacar")
+			default:
+				w.debug("queue full, skipping", "Atacar")
+			}
 		}
 	}
 }

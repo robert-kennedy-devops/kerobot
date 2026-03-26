@@ -33,7 +33,11 @@ func (l *Listener) Handle(ctx context.Context, msg *Message) error {
 	l.mu.RLock()
 	target := l.targetChatID
 	l.mu.RUnlock()
-	if target != 0 && msg.ChatID != target {
+	// If no target set yet, drop messages to avoid mixing chats.
+	if target == 0 {
+		return nil
+	}
+	if msg.ChatID != target {
 		return nil
 	}
 	select {

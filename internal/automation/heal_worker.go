@@ -28,6 +28,10 @@ func NewAutoHealWorker(state *engine.StateManager, queue chan<- engine.Action, p
 }
 
 func (w *AutoHealWorker) Run(ctx context.Context) {
+	if w.interval <= 0 {
+		w.debug("skip heal: invalid interval", w.interval.String())
+		return
+	}
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 

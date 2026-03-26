@@ -26,6 +26,10 @@ func NewAutoCombatWorker(state *engine.StateManager, queue chan<- engine.Action,
 }
 
 func (w *AutoCombatWorker) Run(ctx context.Context) {
+	if w.interval <= 0 {
+		w.debug("skip combat: invalid interval", w.interval.String())
+		return
+	}
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 
@@ -41,6 +45,10 @@ func (w *AutoCombatWorker) Run(ctx context.Context) {
 			}
 			if !w.isEnabled(ctx) {
 				w.debug("skip combat: disabled", "")
+				continue
+			}
+			if !parser.HasButton(snap.Buttons, "Atacar") {
+				w.debug("skip combat: no button", "Atacar")
 				continue
 			}
 			select {

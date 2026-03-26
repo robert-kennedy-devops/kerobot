@@ -27,6 +27,10 @@ func NewAutoPotionWorker(state *engine.StateManager, queue chan<- engine.Action,
 }
 
 func (w *AutoPotionWorker) Run(ctx context.Context) {
+	if w.interval <= 0 {
+		w.debug("skip potion: invalid interval", w.interval.String())
+		return
+	}
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 

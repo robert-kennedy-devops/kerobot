@@ -31,6 +31,10 @@ func NewAutoHuntWorker(state *engine.StateManager, queue chan<- engine.Action, p
 }
 
 func (w *AutoHuntWorker) Run(ctx context.Context) {
+	if w.interval <= 0 {
+		w.debug("skip hunt: invalid interval", w.interval.String())
+		return
+	}
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 
@@ -46,6 +50,10 @@ func (w *AutoHuntWorker) Run(ctx context.Context) {
 			}
 			if !w.isEnabled(ctx) {
 				w.debug("skip hunt: disabled", "")
+				continue
+			}
+			if !parser.HasButton(snap.Buttons, "Caçar") {
+				w.debug("skip hunt: no button", "Caçar")
 				continue
 			}
 			select {

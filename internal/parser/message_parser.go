@@ -12,7 +12,7 @@ var (
 	hpFracRegex     = regexp.MustCompile(`(?i)hp\s*:?\s*(\d+)\s*/\s*(\d+)`)
 	potRegex        = regexp.MustCompile(`(?i)po[cç]ões?\s*:?\s*(\d+)`)
 	stockRegex      = regexp.MustCompile(`(?i)estoque\s*:?\s*(\d+)`)
-	potionItemRegex = regexp.MustCompile(`(?i)po[cç]ao de vida\s*(?:x|×|:)?\s*(\d+)`)
+	potionItemRegex = regexp.MustCompile(`(?i)po[cç](?:a|ã)o de vida\s*(?:x|×|:)?\s*(\d+)`)
 )
 
 func Parse(text string, buttons []string) Snapshot {
@@ -45,26 +45,21 @@ func Parse(text string, buttons []string) Snapshot {
 		}
 	}
 
-	if containsButton(buttons, "caçar") {
-		snapshot.State = StateMainMenu
-	}
-	if containsButton(buttons, "atacar") {
-		snapshot.State = StateCombat
-	}
-	if containsButton(buttons, "inventário") || strings.Contains(textutil.Normalize(lower), "inventario") {
-		snapshot.State = StateInventory
-	}
-	if containsButton(buttons, "dungeon") || containsButton(buttons, "masmorra") || strings.Contains(lower, "dungeon") || strings.Contains(lower, "masmorra") {
-		snapshot.State = StateDungeon
-	}
-	if strings.Contains(lower, "vitória") {
-		snapshot.State = StateVictory
-	}
-	if strings.Contains(lower, "derrota") {
+	switch {
+	case strings.Contains(lower, "derrota"):
 		snapshot.State = StateDefeat
-	}
-	if strings.Contains(lower, "caçando") {
+	case strings.Contains(lower, "vitória"):
+		snapshot.State = StateVictory
+	case containsButton(buttons, "atacar"):
+		snapshot.State = StateCombat
+	case containsButton(buttons, "inventário") || strings.Contains(textutil.Normalize(lower), "inventario"):
+		snapshot.State = StateInventory
+	case containsButton(buttons, "dungeon") || containsButton(buttons, "masmorra") || strings.Contains(lower, "dungeon") || strings.Contains(lower, "masmorra"):
+		snapshot.State = StateDungeon
+	case strings.Contains(lower, "caçando"):
 		snapshot.State = StateHunting
+	case containsButton(buttons, "caçar"):
+		snapshot.State = StateMainMenu
 	}
 
 	return snapshot

@@ -88,18 +88,21 @@ func (m *Manager) StartAccount(ctx context.Context, telegramID int64) error {
 	m.mu.Unlock()
 
 	sessionPath := m.sessionPath(telegramID)
-	go m.runAccount(accCtx, telegramID, sessionPath)
+	go m.runAccount(accCtx, telegramID, sessionPath, cancel)
 	return nil
 }
 
-func (m *Manager) StartQRLogin(ctx context.Context, chatID int64) ([]byte, error) {
+func (m *Manager) StartQRLogin(ctx context.Context, chatID int64) (<-chan []byte, <-chan error) {
 	// Ensure config row
 	_ = m.repo.EnsureUserAndConfig(ctx, chatID)
 
 	sessionPath := m.sessionPath(chatID)
 	apiID, apiHash, err := m.appCreds(ctx)
 	if err != nil {
-		return nil, err
+		errCh := make(chan error, 1)
+		errCh <- err
+		close(errCh)
+		return nil, errCh
 	}
 	d := tg.NewUpdateDispatcher()
 	loggedIn := qrlogin.OnLoginToken(d)
@@ -110,10 +113,12 @@ func (m *Manager) StartQRLogin(ctx context.Context, chatID int64) ([]byte, error
 		UpdateHandler:  updatesHandler,
 	})
 
-	qrCh := make(chan []byte, 1)
+	qrCh := make(chan []byte, 5)
 	errCh := make(chan error, 1)
 
 	go func() {
+		defer close(qrCh)
+		defer close(errCh)
 		err := client.Run(ctx, func(ctx context.Context) error {
 			qrAuth := client.QR()
 			_, err := qrAuth.Auth(ctx, loggedIn, func(ctx context.Context, token qrlogin.Token) error {
@@ -125,9 +130,18 @@ func (m *Manager) StartQRLogin(ctx context.Context, chatID int64) ([]byte, error
 				if err := png.Encode(&buf, img); err != nil {
 					return err
 				}
+				// Send latest QR; drop older if queue is full.
 				select {
 				case qrCh <- buf.Bytes():
 				default:
+					select {
+					case <-qrCh:
+					default:
+					}
+					select {
+					case qrCh <- buf.Bytes():
+					default:
+					}
 				}
 				m.log.Info("qr generated", slog.Int64("chat_id", chatID), slog.String("expires", token.Expires().Format(time.RFC3339)))
 				return nil
@@ -145,14 +159,7 @@ func (m *Manager) StartQRLogin(ctx context.Context, chatID int64) ([]byte, error
 		_ = m.StartAccount(ctx, chatID)
 	}()
 
-	select {
-	case img := <-qrCh:
-		return img, nil
-	case err := <-errCh:
-		return nil, err
-	case <-time.After(10 * time.Second):
-		return nil, fmt.Errorf("qr timeout")
-	}
+	return qrCh, errCh
 }
 
 func (m *Manager) sessionDir() string {
@@ -188,7 +195,14 @@ func (m *Manager) appCreds(ctx context.Context) (int, string, error) {
 	return apiID, apiHash, nil
 }
 
-func (m *Manager) runAccount(ctx context.Context, telegramID int64, sessionPath string) {
+func (m *Manager) runAccount(ctx context.Context, telegramID int64, sessionPath string, cancel context.CancelFunc) {
+	defer func() {
+		cancel()
+		m.mu.Lock()
+		delete(m.runs, telegramID)
+		m.mu.Unlock()
+	}()
+
 	m.log.Info("account start", slog.Int64("telegram_id", telegramID))
 	_ = m.repo.EnsureUserAndConfig(ctx, telegramID)
 
@@ -250,6 +264,9 @@ func (m *Manager) runAccount(ctx context.Context, telegramID int64, sessionPath 
 			case msg := <-listener.Events():
 				if msg == nil {
 					continue
+				}
+				if m.counters != nil {
+					m.counters.IncMessages()
 				}
 				buttons := extractButtonLabels(msg)
 				snapshot := parser.Parse(msg.Text, buttons)

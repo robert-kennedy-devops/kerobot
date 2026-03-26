@@ -14,7 +14,7 @@ KeroBot é um **cliente de usuário do Telegram** (MTProto) pronto para produç�
 - Workers concorrentes com fallback (modo híbrido)
 - Persistência em PostgreSQL + migrations
 - Bot de configuração para onboarding e ajustes por usuário
-- Login via QR por sessão de usuário
+- Login via QR por sessão de usuário (reenvio automático se o token expirar)
 - Modo de captura + regras aprendidas para automação
 - Endpoint de métricas
 - Docker + Docker Compose
@@ -98,7 +98,7 @@ ADMIN_CHAT_ID=0
 Comandos principais:
 - `/config` mostra o menu
 - `/set_api <id>` e `/set_hash <hash>` definem as credenciais do app
-- `/qr` gera o QR para login de usuário
+- `/qr` gera o QR para login de usuário (novo QR é enviado automaticamente se expirar)
 - `/capture_on` e `/capture_off` ativam o modo captura
 - `/last` mostra a última captura
 - `/learn_last_click <label>` cria regra com base no último botão
@@ -108,7 +108,7 @@ Comandos principais:
 1. O cliente MTProto conecta e escuta o bot alvo.
 2. Mensagens são parseadas para estados do jogo.
 3. A engine decide ações com base em eventos e regras aprendidas.
-4. Workers atuam como fallback para estabilidade.
+4. Workers atuam como fallback para estabilidade e só enfileiram ações quando o botão está visível.
 5. Ações vão para uma fila com delay, retry, anti-flood e prioridade.
 
 ## Métricas
@@ -118,6 +118,12 @@ Endpoint JSON em `METRICS_ADDR`:
 ## Observações
 - Configure `API_ID` e `API_HASH` pelo bot (`/set_api` e `/set_hash`).
 - O login é feito por QR (`/qr`).
+
+## Testes
+Execute todos os testes:
+```
+go test ./...
+```
 
 ## Aviso
 Use com responsabilidade e respeite as regras do Telegram e do jogo.

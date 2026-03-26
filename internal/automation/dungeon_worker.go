@@ -26,6 +26,10 @@ func NewDungeonWorker(state *engine.StateManager, queue chan<- engine.Action, pe
 }
 
 func (w *DungeonWorker) Run(ctx context.Context) {
+	if w.interval <= 0 {
+		w.debug("skip dungeon: invalid interval", w.interval.String())
+		return
+	}
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 
@@ -47,6 +51,9 @@ func (w *DungeonWorker) Run(ctx context.Context) {
 				}
 				dropped := false
 				for _, a := range actions {
+					if !parser.HasButton(snap.Buttons, a.Label) {
+						continue
+					}
 					select {
 					case w.queue <- a:
 					default:

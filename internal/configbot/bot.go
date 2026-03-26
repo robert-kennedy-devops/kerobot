@@ -22,7 +22,7 @@ type Bot struct {
 }
 
 type AccountManager interface {
-	StartQRLogin(ctx context.Context, chatID int64) ([]byte, error)
+	StartQRLogin(ctx context.Context, chatID int64) (<-chan []byte, <-chan error)
 	StartAccount(ctx context.Context, chatID int64) error
 }
 
@@ -474,15 +474,26 @@ func (b *Bot) sendQR(ctx context.Context, chatID int64) {
 		b.reply(chatID, "QR login indisponível.")
 		return
 	}
-	img, err := b.manager.StartQRLogin(ctx, chatID)
-	if err != nil {
-		b.reply(chatID, fmt.Sprintf("Erro ao gerar QR: %v", err))
-		return
+	qrCh, errCh := b.manager.StartQRLogin(ctx, chatID)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case err, ok := <-errCh:
+			if ok && err != nil {
+				b.reply(chatID, fmt.Sprintf("Erro ao gerar QR: %v", err))
+			}
+			return
+		case img, ok := <-qrCh:
+			if !ok {
+				return
+			}
+			file := tgbotapi.FileBytes{Name: "qr.png", Bytes: img}
+			photo := tgbotapi.NewPhoto(chatID, file)
+			photo.Caption = "Escaneie este QR no Telegram para autenticar."
+			_, _ = b.api.Send(photo)
+		}
 	}
-	file := tgbotapi.FileBytes{Name: "qr.png", Bytes: img}
-	photo := tgbotapi.NewPhoto(chatID, file)
-	photo.Caption = "Escaneie este QR no Telegram para autenticar."
-	_, _ = b.api.Send(photo)
 }
 
 func (b *Bot) reply(chatID int64, text string) {

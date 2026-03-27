@@ -53,6 +53,18 @@ func TestParseStatePrecedence(t *testing.T) {
 			buttons: []string{"Caçar"},
 			want:    StateMainMenu,
 		},
+		{
+			name:    "main_menu_when_inventory_button_present",
+			text:    "Menu principal",
+			buttons: []string{"⚔️ Caçar", "🧳 Inventário", "🗺️ Viajar"},
+			want:    StateMainMenu,
+		},
+		{
+			name:    "main_menu_when_masmorra_keys_info",
+			text:    "Chaves de Masmorra: 0",
+			buttons: []string{"⚔️ Caçar", "🗝️ Masmorra"},
+			want:    StateMainMenu,
+		},
 	}
 
 	for _, tt := range tests {

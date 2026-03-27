@@ -83,6 +83,12 @@ func (c *Client) Start(ctx context.Context, onMessage func(context.Context, *Mes
 	dispatcher.OnNewChannelMessage(func(ctx context.Context, entities tg.Entities, update *tg.UpdateNewChannelMessage) error {
 		return c.handleMessage(ctx, update.Message, onMessage)
 	})
+	dispatcher.OnEditMessage(func(ctx context.Context, entities tg.Entities, update *tg.UpdateEditMessage) error {
+		return c.handleMessage(ctx, update.Message, onMessage)
+	})
+	dispatcher.OnEditChannelMessage(func(ctx context.Context, entities tg.Entities, update *tg.UpdateEditChannelMessage) error {
+		return c.handleMessage(ctx, update.Message, onMessage)
+	})
 
 	return c.client.Run(ctx, func(ctx context.Context) error {
 		slog.Debug("telegram: auth begin")

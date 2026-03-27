@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/gotd/td/tg"
@@ -37,6 +38,8 @@ type Executor struct {
 	delay   time.Duration
 	retry   retry.Config
 	metrics *metrics.Counters
+	lastRefresh time.Time
+	refreshCooldown time.Duration
 }
 
 func NewExecutor(client *telegram.Client, log *slog.Logger, delay time.Duration, retryCfg retry.Config, counters *metrics.Counters) *Executor {
@@ -48,6 +51,7 @@ func NewExecutor(client *telegram.Client, log *slog.Logger, delay time.Duration,
 		delay:   delay,
 		retry:   retryCfg,
 		metrics: counters,
+		refreshCooldown: 15 * time.Second,
 	}
 }
 
@@ -122,6 +126,7 @@ func (e *Executor) execute(ctx context.Context, action Action) {
 	})
 
 	if err != nil {
+		e.maybeRefreshOnDataInvalid(ctx, action, err)
 		if e.metrics != nil {
 			e.metrics.IncActionsError()
 		}
@@ -133,4 +138,23 @@ func (e *Executor) execute(ctx context.Context, action Action) {
 		e.metrics.IncActionsOK()
 	}
 	e.log.Info("action ok", slog.String("type", string(action.Type)), slog.String("label", action.Label), slog.String("reason", action.Reason))
+}
+
+func (e *Executor) maybeRefreshOnDataInvalid(ctx context.Context, action Action, err error) {
+	if err == nil || action.Peer == nil {
+		return
+	}
+	if action.Type != ActionClick {
+		return
+	}
+	if !strings.Contains(err.Error(), "DATA_INVALID") {
+		return
+	}
+	now := time.Now()
+	if now.Sub(e.lastRefresh) < e.refreshCooldown {
+		return
+	}
+	e.lastRefresh = now
+	e.log.Warn("data invalid: refreshing with /start", slog.String("reason", action.Reason))
+	_ = e.client.SendMessage(ctx, action.Peer, "/start")
 }

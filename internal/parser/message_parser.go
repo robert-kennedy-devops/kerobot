@@ -52,9 +52,11 @@ func Parse(text string, buttons []string) Snapshot {
 		snapshot.State = StateVictory
 	case containsButton(buttons, "atacar"):
 		snapshot.State = StateCombat
-	case containsButton(buttons, "inventário") || strings.Contains(textutil.Normalize(lower), "inventario"):
+	case strings.Contains(textutil.Normalize(lower), "inventario"):
 		snapshot.State = StateInventory
-	case containsButton(buttons, "dungeon") || containsButton(buttons, "masmorra") || strings.Contains(lower, "dungeon") || strings.Contains(lower, "masmorra"):
+	case strings.Contains(lower, "dungeon") ||
+		(strings.Contains(lower, "masmorra") && !strings.Contains(lower, "chaves de masmorra")) ||
+		containsButton(buttons, "Criar sala") || containsButton(buttons, "Iniciar") || containsButton(buttons, "Entrar"):
 		snapshot.State = StateDungeon
 	case strings.Contains(lower, "caçando"):
 		snapshot.State = StateHunting
